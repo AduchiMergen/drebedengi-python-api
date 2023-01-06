@@ -39,12 +39,12 @@ def xmlmap_to_model(xmlmap: etree.Element, model_type: Type[T], *, strict: bool 
     model_fields = fields_dict(model_type)  # type: ignore # (until https://github.com/python-attrs/attrs/pull/997)
 
     vals = {}
+    item_vals = {key.text: value.text for key, value in list(xmlmap)}
     for name, field in model_fields.items():
         # If a name is defined in the metadata => it has a different xml key, otherwise just use model field name
         key = field.metadata.get("xml", {}).get("name", name)
-        value = _get_xmlmap_value_by_key(xmlmap, key=key)
-        if value:
-            vals[name] = value[0]
+        if key in item_vals:
+            vals[name] = item_vals[key]
         elif strict and not (field.type and isinstance(None, field.type)):
             raise ValueError(
                 f"Key <{name}> was not found in the element {etree.tostring(xmlmap, pretty_print=True)}"

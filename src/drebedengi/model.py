@@ -3,6 +3,7 @@
 from datetime import datetime
 from enum import IntEnum
 
+from attr.converters import default_if_none
 from attrs import define, field
 from attrs.converters import optional, to_bool
 
@@ -335,6 +336,7 @@ class Account:
     is_autohide: bool = field(converter=to_bool)
     is_loan: bool = field(converter=to_bool, metadata={"xml": {"name": "is_for_duty"}})
     sort: int = field(converter=int)
+    description: str = field(converter=default_if_none(default=''))
     wallet_user_id: int | None = field(
         converter=optional(int), metadata={"xml": {"name": "purse_of_nuid"}}, default=None
     )
