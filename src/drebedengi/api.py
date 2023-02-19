@@ -5,6 +5,7 @@ import zeep
 from lxml import etree
 from requests.models import Response
 from zeep.client import Client
+from zeep.helpers import create_xml_soap_map
 from zeep.transports import Transport
 
 from .model import (
@@ -13,6 +14,7 @@ from .model import (
     Currency,
     ExpenseCategory,
     IncomeSource,
+    PlaceListReturnItem,
     ReportFilterType,
     ReportGrouping,
     ReportPeriod,
@@ -24,6 +26,9 @@ from .utils import generate_xml_array, xmlmap_to_model
 
 from typing import Any, Dict, List
 
+from zeep.plugins import HistoryPlugin
+
+history = HistoryPlugin()
 logger = logging.getLogger(__name__)
 
 DREBEDENGI_DEFAULT_SOAP_URL = "https://www.drebedengi.ru/soap/dd.wsdl"
@@ -92,7 +97,7 @@ class DrebedengiAPI:
         self.soap_url = soap_url
         self.strict = strict
         transport = Transport(timeout=wsdl_timeout, operation_timeout=operation_timeout)
-        self.client = Client(soap_url, transport=transport)  # type: ignore
+        self.client = Client(soap_url, transport=transport, plugins=[history])  # type: ignore
 
         logger.debug(
             f"Initialized DrebedengiAPI for {login=}. SOAP URL: {self.soap_url}. Strict: {self.strict}"
@@ -380,7 +385,20 @@ class DrebedengiAPI:
         Implements getPlaceList API
 
         Original wsdl description:
-            Retrievs place list (array of arrays): [id] => Internal place ID; [budget_family_id] => User family ID (for multiuser mode); [type] => Type of object, 4 - places; [name] => Place name given by user; [is_hidden] => is place hidden in user interface; [is_autohide] => debts will auto hide on null balance; [is_for_duty] => Internal place for duty logic, Auto created while user adds "Waste or income duty"; [sort] => User sort of place list; [purse_of_nuid] => Not empty if place is purse of user# The value is internal user ID; [icon_id] => Place icon ID from http://www(dot)drebedengi(dot)ru/img/pl[icon_id](dot)gif; If parameter [idList] is given, it will be treat as ID list of objects to retrieve# this is used for synchronization; There is may be empty response, if user access level is limited;
+            Retrievs place list (array of arrays):
+            [id] => Internal place ID;
+            [budget_family_id] => User family ID (for multiuser mode);
+            [type] => Type of object, 4 - places;
+            [name] => Place name given by user;
+            [is_hidden] => is place hidden in user interface;
+            [is_autohide] => debts will auto hide on null balance;
+            [is_for_duty] => Internal place for duty logic, Auto created while user adds "Waste or income duty";
+            [sort] => User sort of place list;
+            [purse_of_nuid] => Not empty if place is purse of user
+            # The value is internal user ID;
+            [icon_id] => Place icon ID from http://www(dot)drebedengi(dot)ru/img/pl[icon_id](dot)gif;
+            If parameter [idList] is given, it will be treat as ID list of objects to retrieve# this is used for synchronization;
+            There is may be empty response, if user access level is limited;
         """
 
         logger.debug(f"Getting accounts with the following params: {id_list=}")
@@ -406,6 +424,50 @@ class DrebedengiAPI:
         items: List[etree.Element] = root.findall(".//getPlaceListReturn/item")
 
         return [xmlmap_to_model(item, Account, strict=self.strict) for item in items]
+
+    def set_accounts(
+        self,
+        *,
+        accounts: List[Dict],
+    ) -> List[PlaceListReturnItem]:
+        """
+        Implements setPlaceList API
+
+        Original wsdl description:
+            Insert or update place list;
+            [list] => array of arrays:
+                'server_id' or 'client_id' [int8] - server or client ID of the record
+                # If client ID is present - try to insert new record, and return server2client correspondence in the result array
+                # If server_id is present - try to update existing record, @see getPlaceList description for other detail;
+            Returns the array of server IDs, successfully changed; The client MUST save server IDs corresponded to
+            client IDs, for subsequent 'update' and 'delete' calls;
+        """
+
+        logger.debug(f"Getting accounts with the following params: {accounts=}")
+
+        # if id_list is not None:
+        #     id_list_xml = generate_xml_array(id_list)
+        # else:
+        #     id_list_xml = zeep.xsd.SkipValue  # type: ignore
+
+        client = self.client
+
+        with client.settings(raw_response=True, strict=False):
+
+            result = client.service.setPlaceList(
+                self.api_key,
+                self.login,
+                self.password,
+                list=generate_xml_array(accounts),
+            )
+            # for hist in [history.last_sent, history.last_received]:
+            #     print(etree.tostring(hist["envelope"], encoding="unicode", pretty_print=True))
+            DrebedengiAPIError.check_and_raise(result)
+
+        root = etree.fromstring(result.content)
+        items: List[etree.Element] = root.findall(".//setPlaceListReturn/item")
+
+        return [xmlmap_to_model(item, PlaceListReturnItem, strict=self.strict) for item in items]
 
     def get_current_revision(self) -> int:
         """

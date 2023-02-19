@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 from drebedengi import DrebedengiAPI
-from drebedengi.model import ChangeRecord, Transaction, TransactionType
+from drebedengi.model import Account, ChangeRecord, Transaction, TransactionType
 
 import pytest
 from attrs import evolve
@@ -202,6 +202,35 @@ def test_get_currencies_by_id(
 def test_get_accounts(test_api: DrebedengiAPI) -> None:
     """Test get accounts."""
     accounts = test_api.get_accounts()
+
+    assert len(accounts) > 0
+
+
+def test_set_accounts(test_api: DrebedengiAPI) -> None:
+    """Test get accounts."""
+    placeList = [
+        {
+            'budget_family_id': 5,
+            'server_id': 40034,
+            'is_hidden': False,
+            'is_for_duty': False,
+            'sort': 40034,
+            'purse_of_nuid': "",
+            'icon_id': 4,
+            'name': 'Объект "A" №6',
+        },
+        {
+            'budget_family_id': 5,
+            'client_id': 11111,
+            'is_hidden': False,
+            'is_for_duty': False,
+            'sort': 40500,
+            'purse_of_nuid': '',
+            'icon_id': 2,
+            'name': 'Объект "A" №7',
+        },
+    ]
+    accounts = test_api.set_accounts(accounts=placeList)
 
     assert len(accounts) > 0
 

@@ -318,6 +318,7 @@ class Account:
         budget_family_id (int): User family ID (for multiuser mode)
         object_type (ObjectType): Always ObjectType.ACCOUNT
         name (str): Account name assigned by the user.
+        description (str): Account description
         is_hidden (bool): True if the account is hidden.
         is_autohide (bool): True if the account is configured to hide on zero balance.
         is_loan (bool): True if the account is for loans (both taken and given).
@@ -328,16 +329,23 @@ class Account:
 
     id: int = field(converter=int)
     budget_family_id: int = field(converter=int)
-    object_type: ObjectType = field(
-        converter=_object_type_from_str, metadata={"xml": {"name": "type"}}
-    )
     name: str = field(converter=str)
     is_hidden: bool = field(converter=to_bool)
     is_autohide: bool = field(converter=to_bool)
     is_loan: bool = field(converter=to_bool, metadata={"xml": {"name": "is_for_duty"}})
     sort: int = field(converter=int)
-    description: str = field(converter=default_if_none(default=''))
+    object_type: ObjectType = field(
+        converter=_object_type_from_str, metadata={"xml": {"name": "type"}}, default=ObjectType.ACCOUNT,
+    )
+    description: str = field(converter=default_if_none(default=''), default='')
     wallet_user_id: int | None = field(
         converter=optional(int), metadata={"xml": {"name": "purse_of_nuid"}}, default=None
     )
     icon_id: str | None = field(default=None)
+
+
+@define
+class PlaceListReturnItem:
+    server_id: int = field(converter=int)
+    status: str = field(converter=str)
+    client_id: int | None = field(converter=optional(int), default=None)

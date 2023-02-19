@@ -5,7 +5,7 @@ from __future__ import annotations
 from attrs import fields_dict, has
 from lxml import etree
 from zeep import xsd
-from zeep.helpers import guess_xsd_type
+from zeep.helpers import create_xml_soap_map
 
 from typing import TYPE_CHECKING, Any, List, Type, TypeVar
 
@@ -72,7 +72,7 @@ def generate_xml_array(values: List[Any]) -> xsd.ComplexType:
         qname=etree.QName("{http://schemas.xmlsoap.org/soap/encoding/}Array"),
     )
 
-    return Array(item=[xsd.AnyObject(guess_xsd_type(value), value) for value in values])  # type: ignore
+    return Array(item=[create_xml_soap_map(value) for value in values])  # type: ignore
 
 
 def check_same_transfer_transactions(tr1: Transaction, tr2: Transaction) -> bool:
